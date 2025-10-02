@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+# Initialize podman if needed
+if [ ! -d "$SNAP_DATA/containers" ]; then
+    mkdir -p "$SNAP_DATA/containers"
+fi
+
+# Run systemd container with podman
+exec podman run --rm -it \
+    --systemd=true \
+    --privileged \
+    -v "$SNAP_DATA/containers:/var/lib/containers" \
+    ubuntu:22.04 \
+    /sbin/init

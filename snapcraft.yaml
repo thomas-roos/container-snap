@@ -1,0 +1,28 @@
+name: container-snap
+base: core22
+version: '1.0'
+summary: Container snap with systemd and podman
+description: A snap that runs systemd containers using podman
+
+grade: stable
+confinement: strict
+
+apps:
+  daemon:
+    command: bin/start-container
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - docker-support
+      - system-observe
+
+parts:
+  container-runner:
+    plugin: dump
+    source: .
+    organize:
+      start-container: bin/start-container
+    stage-packages:
+      - podman
+      - systemd-container
