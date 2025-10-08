@@ -2,3 +2,5 @@
 parts/
 stage/
 prime/
+image.tar.gz
+*.zip
