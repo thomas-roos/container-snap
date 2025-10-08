@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  systemd-container:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: systemd-greengrass:latest
+    container_name: systemd-snap-container
+    tmpfs:
+      - /tmp
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - systemd-data:/data
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+
+volumes:
+  systemd-data:
+    driver: local

@@ -1,28 +1,49 @@
-name: container-snap
-base: core22
+name: systemd-compose-snap
 version: '1.0'
-summary: Container snap with systemd and podman
-description: A snap that runs systemd containers using podman
+summary: SystemD container with AWS Greengrass Lite via docker-compose
+description: Provides systemd container with AWS Greengrass Lite definition via docker-compose pattern
+base: core22
 
-grade: stable
+grade: devel
 confinement: strict
 
+slots:
+  docker-compose:
+    interface: content
+    content: docker-compose
+    source:
+      read:
+        - $SNAP/docker-compose/${CRAFT_PROJECT_NAME}
+  docker-volumes:
+    interface: content
+    content: docker-volumes
+    source:
+      write:
+        - $SNAP_DATA/docker-volumes/${CRAFT_PROJECT_NAME}
+
 apps:
-  daemon:
-    command: bin/start-container
-    daemon: simple
-    plugs:
-      - network
-      - network-bind
-      - docker-support
-      - system-observe
+  info:
+    command: bin/compose-info
 
 parts:
-  container-runner:
+  docker-compose:
+    plugin: dump
+    source: ./docker-compose
+    organize:
+      '*': docker-compose/${CRAFT_PROJECT_NAME}/
+  
+  dockerfile:
     plugin: dump
     source: .
     organize:
-      start-container: bin/start-container
-    stage-packages:
-      - podman
-      - systemd-container
+      Dockerfile: docker-compose/${CRAFT_PROJECT_NAME}/Dockerfile
+    stage:
+      - docker-compose/${CRAFT_PROJECT_NAME}/Dockerfile
+  
+  scripts:
+    plugin: dump
+    source: .
+    organize:
+      compose-info: bin/compose-info
+    stage:
+      - bin/compose-info
