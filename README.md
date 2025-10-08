@@ -189,21 +189,25 @@ docker restart systemd-snap-container
 
 **6. Using AWS Greengrass Connection Kit:**
 ```bash
-# Copy your AWS connection kit to the config directory
-sudo cp GreengrassQuickStartCore-19976cbc5c0-connectionKit.zip \
+# 1. Copy your AWS connection kit to the config directory
+sudo cp your-connection-kit.zip \
   /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/
 
-# Access container and run complete setup
-docker exec -it systemd-snap-container /bin/bash
-
-# Inside container - run the complete setup script
+# 2. Start the container
 cd /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap
-chmod +x setup-greengrass.sh
-./setup-greengrass.sh
+docker-compose --env-file docker-compose.env up -d
 
-# Verify all services are running
-systemctl list-units --state=active | grep ggl
+# 3. Run setup script (will check for connection kit)
+docker exec systemd-snap-container /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap/setup-greengrass.sh
+
+# 4. Verify all services are running
+docker exec systemd-snap-container systemctl list-units --state=active | grep ggl
 ```
+
+**Important Security Note:**
+- Connection kits contain sensitive certificates and should NEVER be included in the snap
+- Always copy your connection kit to the volume directory after snap installation
+- Each deployment needs its own unique connection kit from AWS IoT Console
 
 **Complete Setup Process (Manual):**
 ```bash
