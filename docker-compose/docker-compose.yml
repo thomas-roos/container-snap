@@ -2,10 +2,7 @@ version: '3.8'
 
 services:
   systemd-container:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    image: systemd-greengrass:latest
+    image: ${IMAGE_NAME}:${IMAGE_TAG}
     container_name: systemd-snap-container
     tmpfs:
       - /tmp
@@ -13,6 +10,9 @@ services:
       - /run/lock
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - ${SNAP_DATA}/docker-volumes/${SNAPCRAFT_PROJECT_NAME}/config:/etc/greengrass:rw
+      - ${SNAP_DATA}/docker-volumes/${SNAPCRAFT_PROJECT_NAME}/components:/opt/aws/iot/greengrass/components:rw
+      - ${SNAP_DATA}/docker-volumes/${SNAPCRAFT_PROJECT_NAME}/lib:/var/lib/greengrass:rw
       - systemd-data:/data
     restart: unless-stopped
     tty: true

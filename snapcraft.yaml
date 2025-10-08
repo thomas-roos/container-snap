@@ -32,14 +32,6 @@ parts:
     organize:
       '*': docker-compose/${CRAFT_PROJECT_NAME}/
   
-  dockerfile:
-    plugin: dump
-    source: .
-    organize:
-      Dockerfile: docker-compose/${CRAFT_PROJECT_NAME}/Dockerfile
-    stage:
-      - docker-compose/${CRAFT_PROJECT_NAME}/Dockerfile
-  
   scripts:
     plugin: dump
     source: .

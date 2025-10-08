@@ -7,15 +7,17 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Download AWS Greengrass Lite
-RUN wget -O /tmp/greengrass-lite.zip https://github.com/aws-greengrass/aws-greengrass-lite/releases/download/v2.2.2/aws-greengrass-lite-ubuntu-x86-64.zip \
-    && unzip /tmp/greengrass-lite.zip -d /tmp/greengrass \
-    && rm /tmp/greengrass-lite.zip
+# Download and install AWS Greengrass Lite properly
+RUN cd /tmp && \
+    wget -O greengrass-lite.zip https://github.com/aws-greengrass/aws-greengrass-lite/releases/download/v2.2.2/aws-greengrass-lite-ubuntu-x86-64.zip && \
+    unzip greengrass-lite.zip -d greengrass && \
+    cd greengrass && \
+    apt-get update && \
+    apt-get install -y ./aws-greengrass-lite-2.2.2-Linux.deb && \
+    rm -rf /tmp/greengrass*
 
-# Install Greengrass Lite package (ignore systemd configuration errors)
-RUN cd /tmp/greengrass \
-    && apt-get update \
-    && dpkg -i aws-greengrass-lite*.deb; apt-get install -f -y; exit 0
+# Create proper directory structure
+RUN mkdir -p /etc/greengrass/config.d
 
 # Cleanup
-RUN rm -rf /tmp/greengrass /var/lib/apt/lists/*
+RUN rm -rf /var/lib/apt/lists/*

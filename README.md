@@ -135,6 +135,102 @@ sudo snap connect ctrlx-docker:docker-volumes systemd-compose-snap:docker-volume
   - ggl.core.iotcored (IoT Core connectivity)
 - **Bosch ctrlX Pattern**: Content interfaces for docker-compose and volumes
 
+## Configuration Management
+
+The snap provides persistent storage for Greengrass configuration and data through volume mappings:
+
+- `/etc/greengrass` → `config/` (certificates, config.yaml)
+- `/var/lib/greengrass` → `lib/` (runtime data, logs)
+- `/opt/aws/iot/greengrass/components` → `components/` (deployed components)
+
+### Updating Configuration
+
+**1. Direct File System Access (ctrlX CORE):**
+```bash
+# SSH into ctrlX CORE
+ssh boschrexroth@192.168.1.1
+
+# Edit config files directly
+sudo nano /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/config.yaml
+sudo nano /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/certificates.pem
+```
+
+**2. Container Access:**
+```bash
+# Access running container
+docker exec -it systemd-snap-container /bin/bash
+
+# Edit files inside container (changes persist to host)
+nano /etc/greengrass/config.yaml
+nano /var/lib/greengrass/deployment.json
+```
+
+**3. File Copy Operations:**
+```bash
+# Copy config files to snap directory
+sudo cp my-config.yaml /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/
+sudo cp certificates/* /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/
+sudo cp components/*.jar /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/components/
+```
+
+**4. Via ctrlX Web Interface:**
+- Upload files through ctrlX Device Portal
+- Use file manager to navigate to snap directories
+- Edit configurations through web-based editors
+
+**5. Automated Deployment:**
+```bash
+#!/bin/bash
+SNAP_DIR="/var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap"
+cp connection-kit/* $SNAP_DIR/config/
+cp components/* $SNAP_DIR/components/
+docker restart systemd-snap-container
+```
+
+**6. Using AWS Greengrass Connection Kit:**
+```bash
+# Copy your AWS connection kit to the config directory
+sudo cp GreengrassQuickStartCore-19976cbc5c0-connectionKit.zip \
+  /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/
+
+# Access container and run complete setup
+docker exec -it systemd-snap-container /bin/bash
+
+# Inside container - run the complete setup script
+cd /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap
+chmod +x setup-greengrass.sh
+./setup-greengrass.sh
+
+# Verify all services are running
+systemctl list-units --state=active | grep ggl
+```
+
+**Complete Setup Process (Manual):**
+```bash
+# 1. Download and install Greengrass Lite properly
+cd /tmp
+wget -O greengrass-lite.zip https://github.com/aws-greengrass/aws-greengrass-lite/releases/download/v2.2.2/aws-greengrass-lite-ubuntu-x86-64.zip
+unzip greengrass-lite.zip -d greengrass
+cd greengrass
+
+# 2. Install with connection kit
+bash install-greengrass-lite.sh -k /etc/greengrass/GreengrassQuickStartCore-19976cbc5c0-connectionKit.zip
+
+# 3. Fix config placeholders
+sed -i -e s:{{config_dir}}:\/etc\/greengrass:g -e s:{{nucleus_component}}:aws.greengrass.NucleusLite:g /etc/greengrass/config.yaml
+
+# 4. Fix certificate ownership and permissions
+chown ggcore:ggcore /etc/greengrass/*.pem* /etc/greengrass/config.yaml
+chmod 644 /etc/greengrass/device.pem.crt /etc/greengrass/AmazonRootCA1.pem
+chmod 600 /etc/greengrass/private.pem.key
+
+# 5. Enable and start Greengrass Lite
+systemctl enable greengrass-lite.target
+systemctl start greengrass-lite.target
+```
+
+All changes persist across container restarts and system reboots.
+
 ## Manual Testing (Without Snaps)
 
 Create test directory:
