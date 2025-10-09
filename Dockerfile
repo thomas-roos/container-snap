@@ -1,19 +1,17 @@
-ARG BASE_IMAGE=ubuntu:24.04
-FROM ${BASE_IMAGE}
+# Build stage
+FROM ubuntu:24.04 as builder
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update \
-  && apt-get -y install --no-install-recommends \
-    systemd systemd-sysv dbus ca-certificates sudo nano bash-completion \
-    build-essential pkg-config cmake git curl file gdb python3 \
-    libssl-dev libcurl4-openssl-dev libsqlite3-dev sqlite3 libyaml-dev \
-    libsystemd-dev liburiparser-dev uuid-dev libevent-dev cgroup-tools zlib1g-dev \
-    unzip \
-  && apt-get clean
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential pkg-config cmake git curl \
+    libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
+    libsystemd-dev liburiparser-dev uuid-dev libevent-dev zlib1g-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Build static libzip
-RUN echo "deb-src http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" >> /etc/apt/sources.list && \
-    echo "deb-src http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+RUN echo "deb-src http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb-src http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
     apt-get update && \
     apt-get source libzip && \
     cd libzip-* && \
@@ -22,29 +20,23 @@ RUN echo "deb-src http://archive.ubuntu.com/ubuntu jammy main restricted univers
     make install
 
 # Build and install AWS Greengrass Lite from source
-RUN cd /tmp && \
-    git clone https://github.com/aws-greengrass/aws-greengrass-lite.git && \
-    cd aws-greengrass-lite && \
+RUN git clone --depth 1 https://github.com/aws-greengrass/aws-greengrass-lite.git /tmp/aws-greengrass-lite && \
+    cd /tmp/aws-greengrass-lite && \
     mkdir build && cd build && \
     cmake .. && \
     make -j$(nproc) && \
-    make install && \
-    cd / && rm -rf /tmp/aws-greengrass-lite
+    make install DESTDIR=/tmp/install
 
-# Remove build dependencies and clean up
-RUN apt-get remove -y --purge \
-    build-essential pkg-config cmake git curl file gdb python3 \
-    libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
-    libsystemd-dev liburiparser-dev uuid-dev libevent-dev zlib1g-dev \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /libzip-* \
-    && rm -rf /tmp/* \
-    && apt-get update \
-    && apt-get install -y \
+# Runtime stage
+FROM ubuntu:24.04
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    systemd-sysv \
+    ca-certificates \
     cgroup-tools \
-    libcurl4  \
+    libcurl4 \
     libevent-2.1-7 \
     libsqlite3-0 \
     libssl3 \
@@ -52,8 +44,17 @@ RUN apt-get remove -y --purge \
     liburiparser1 \
     libuuid1 \
     libyaml-0-2 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    dbus \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && apt-get clean
+
+# Copy built binaries from builder stage
+COPY --from=builder /tmp/install /
+COPY --from=builder /usr/local /usr/local
+
+# Remove unnecessary systemd bloat
+RUN rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/* /var/cache/debconf/* \
+    /usr/share/locale/* /var/log/*
 
 # Create users and groups and run postinst steps
 RUN groupadd -r ggcore && \
@@ -100,6 +101,5 @@ RUN systemctl enable greengrass-lite.target && \
     systemctl enable ggl.core.gghealthd.service && \
     systemctl enable ggl.core.ggipcd.service && \
     systemctl enable ggl.aws.greengrass.TokenExchangeService.service
-
 
 CMD ["/lib/systemd/systemd"]

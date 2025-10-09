@@ -27,3 +27,11 @@ parts:
     source: ./docker-compose
     organize:
       '*': docker-compose/${CRAFT_PROJECT_NAME}/
+  
+  setup-script:
+    plugin: dump
+    source: .
+    organize:
+      setup-connection-kit.sh: bin/setup-connection-kit.sh
+    stage:
+      - bin/setup-connection-kit.sh

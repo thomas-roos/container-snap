@@ -14,11 +14,6 @@ This snap implements the **provider** side of the Bosch ctrlX pattern:
 - Contains SystemD container with AWS Greengrass Lite (ubuntu:24.04 + Greengrass Lite git)
 - **Does NOT run containers itself**
 
-**Consumer Snap (separate project):**
-- Connects to this provider's content interface
-- **Executes `docker-compose up -d` from provider's directory**
-- Provides runtime commands like `compose-runner.list`
-
 **ctrlX CORE Deployment:**
 - **Container Engine app** acts as the consumer
 - Reads docker-compose files from provider snaps
@@ -58,11 +53,6 @@ snapcraft pack
 ## Installing the Snap
 
 ```bash
-## Connection Kit Setup
-
-**Simple 3-Step Process:**
-
-```bash
 # 1. Install snap
 sudo snap install --dangerous greengrass-lite-snap_1.0_amd64.snap
 
@@ -70,9 +60,10 @@ sudo snap install --dangerous greengrass-lite-snap_1.0_amd64.snap
 docker load -i /snap/greengrass-lite-snap/current/docker-compose/greengrass-lite-snap/image.tar.gz
 
 # 2. Setup connection kit
-./setup-connection-kit.sh /path/to/your-connection-kit.zip
+sudo ./setup-connection-kit.sh /path/to/your-connection-kit.zip
+(script will be available at /snap/greengrass-lite-snap/current/bin/setup-connection-kit.sh after installing the snap)
 
-# 3. Start container
+# 3. Start container (this is done by ctrlX later on)
 cd /snap/greengrass-lite-snap/current/docker-compose/greengrass-lite-snap
 docker-compose --env-file docker-compose.env up -d
 
@@ -97,6 +88,7 @@ The `setup-connection-kit.sh` script automatically:
 - Connection kits contain sensitive certificates and should NEVER be included in the snap
 - Each deployment needs its own unique connection kit from AWS IoT Console
 - All processing happens on the host before container starts - no manual fixes needed
+- Fleetprovisioning is also possible modifying the config files, not using the connection kit
 
 ## Uninstall
 
