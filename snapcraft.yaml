@@ -1,4 +1,4 @@
-name: systemd-compose-snap
+name: greengrass-lite-snap
 version: '1.0'
 summary: SystemD container with AWS Greengrass Lite via docker-compose
 description: Provides systemd container with AWS Greengrass Lite definition via docker-compose pattern
@@ -21,39 +21,9 @@ slots:
       write:
         - $SNAP_DATA/docker-volumes/${CRAFT_PROJECT_NAME}
 
-hooks:
-  configure:
-    plugs: [snapd-control]
-
-apps:
-  info:
-    command: bin/compose-info
-  
-  daemon:
-    command: bin/start-container
-    daemon: simple
-    restart-condition: always
-    plugs: [docker, network]
-
 parts:
   docker-compose:
     plugin: dump
     source: ./docker-compose
     organize:
       '*': docker-compose/${CRAFT_PROJECT_NAME}/
-  
-  scripts:
-    plugin: dump
-    source: .
-    organize:
-      compose-info: bin/compose-info
-      start-container: bin/start-container
-    stage:
-      - bin/compose-info
-      - bin/start-container
-  
-  hooks:
-    plugin: dump
-    source: hooks
-    organize:
-      '*': meta/hooks/

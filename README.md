@@ -10,8 +10,8 @@ This snap implements the **provider** side of the Bosch ctrlX pattern:
 
 **Provider Snap (this project):**
 - Packages docker-compose.yml, docker-compose.env, and Dockerfile
-- Exposes them via snap content interface at `/snap/systemd-compose-snap/x1/docker-compose/`
-- Contains SystemD container with AWS Greengrass Lite (jrei/systemd-ubuntu:24.04 + Greengrass Lite v2.2.2)
+- Exposes them via snap content interface at `/snap/greengrass-lite-snap/x1/docker-compose/`
+- Contains SystemD container with AWS Greengrass Lite (ubuntu:24.04 + Greengrass Lite git)
 - **Does NOT run containers itself**
 
 **Consumer Snap (separate project):**
@@ -38,23 +38,53 @@ This snap implements the **provider** side of the Bosch ctrlX pattern:
 ```bash
 sudo apt update && sudo apt install -y docker.io docker-compose
 sudo usermod -aG docker $USER
+sudo snap install snapcraft --classic
 ```
 **Important: Logout and login again for docker group changes to take effect**
 
+## Building the Container and Snap
+
+```bash
+# Build the container with Greengrass Lite
+docker build -t greengrass-lite:latest .
+
+# Save container image for snap packaging
+docker save greengrass-lite:latest | gzip > docker-compose/image.tar.gz
+
+# Build the snap
+snapcraft pack
+```
+
+## Installing the Snap
+
+```bash
 ## Connection Kit Setup
 
 **Simple 3-Step Process:**
 
 ```bash
 # 1. Install snap
-sudo snap install --dangerous systemd-compose-snap_1.0_amd64.snap
+sudo snap install --dangerous greengrass-lite-snap_1.0_amd64.snap
 
 # 2. Load Docker image
-sudo docker load -i /snap/systemd-compose-snap/current/docker-compose/systemd-compose-snap/image.tar.gz
+docker load -i /snap/greengrass-lite-snap/current/docker-compose/greengrass-lite-snap/image.tar.gz
+
+# 2. Setup connection kit
+./setup-connection-kit.sh /path/to/your-connection-kit.zip
 
 # 3. Start container
-cd /snap/systemd-compose-snap/current/docker-compose/systemd-compose-snap
-sudo SNAP_DATA=/var/snap/systemd-compose-snap/current SNAPCRAFT_PROJECT_NAME=systemd-compose-snap docker-compose --env-file docker-compose.env up -d
+cd /snap/greengrass-lite-snap/current/docker-compose/greengrass-lite-snap
+docker-compose --env-file docker-compose.env up -d
+
+# 4. Verify functionality
+docker exec greengrass-lite systemctl status greengrass-lite.target
+docker exec greengrass-lite systemctl list-units --state=active | grep ggl
+docker exec greengrass-lite systemctl --failed
+docker exec greengrass-lite journalctl -f
+docker exec -it greengrass-lite bash
+
+# 5. Stop container
+docker-compose down
 ```
 
 The `setup-connection-kit.sh` script automatically:
@@ -72,44 +102,19 @@ The `setup-connection-kit.sh` script automatically:
 
 ```bash
 # Stop container (if running)
-cd /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap
+cd /snap/greengrass-lite-snap/x1/docker-compose/greengrass-lite-snap
 docker-compose down
 
 # Remove snap
-sudo snap remove systemd-compose-snap
+sudo snap remove greengrass-lite-snap
 
 # Clean up snap directories
-sudo rm -rf /snap/systemd-compose-snap
-sudo rm -rf /var/snap/systemd-compose-snap
+sudo rm -rf /snap/greengrass-lite-snap
+sudo rm -rf /var/snap/greengrass-lite-snap
 
 # Clean up docker images (optional)
 sudo docker rmi greengrass-lite:latest
 
-# Remove docker volumes (optional - removes all data)
-sudo docker volume prune
-```
-
-## Testing the Container
-
-### Complete Test Flow
-
-```bash
-# 1. Install snap
-sudo snap install --dangerous systemd-compose-snap_1.0_amd64.snap
-
-# 2. Setup connection kit
-sudo ./setup-connection-kit.sh /path/to/your-connection-kit.zip
-
-# 3. Start container
-cd /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap
-docker-compose up -d
-
-# 4. Verify functionality
-docker exec systemd-snap-container systemctl status greengrass-lite.target
-docker exec systemd-snap-container systemctl list-units --state=active | grep ggl
-
-# 5. Stop container
-docker-compose down
 ```
 
 ## Configuration Management
@@ -128,13 +133,13 @@ The snap provides persistent storage for Greengrass configuration and data throu
 sudo ./setup-connection-kit.sh /path/to/new-connection-kit.zip
 
 # Restart container to pick up changes
-cd /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap
+cd /snap/greengrass-lite-snap/x1/docker-compose/greengrass-lite-snap
 docker-compose restart
 ```
 
 **2. Direct File System Access:**
 ```bash
 # Edit config files directly
-sudo nano /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/config.yaml
-sudo nano /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/certificates.pem
+sudo nano /var/snap/greengrass-lite-snap/current/docker-volumes/greengrass-lite-snap/config/config.yaml
+sudo nano /var/snap/greengrass-lite-snap/current/docker-volumes/greengrass-lite-snap/config/certificates.pem
 ```

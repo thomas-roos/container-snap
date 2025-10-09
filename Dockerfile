@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=debian:trixie-slim
+ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -8,16 +8,16 @@ RUN apt-get update \
     build-essential pkg-config cmake git curl file gdb python3 \
     libssl-dev libcurl4-openssl-dev libsqlite3-dev sqlite3 libyaml-dev \
     libsystemd-dev liburiparser-dev uuid-dev libevent-dev cgroup-tools zlib1g-dev \
-    libzstd-dev \
     unzip \
   && apt-get clean
 
 # Build static libzip
-RUN echo "deb-src http://deb.debian.org/debian trixie main" >> /etc/apt/sources.list && \
+RUN echo "deb-src http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb-src http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
     apt-get update && \
     apt-get source libzip && \
     cd libzip-* && \
-    cmake -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_ZSTD=OFF . && \
+    cmake -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr . && \
     make -j$(nproc) && \
     make install
 
@@ -36,14 +36,22 @@ RUN apt-get remove -y --purge \
     build-essential pkg-config cmake git curl file gdb python3 \
     libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
     libsystemd-dev liburiparser-dev uuid-dev libevent-dev zlib1g-dev \
-    libzstd-dev \
     && apt-get autoremove -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /libzip-* \
     && rm -rf /tmp/* \
     && apt-get update \
-    && apt-get install -y libyaml-0-2 liburiparser1 libcurl4t64 libsqlite3-0 libevent-2.1-7t64 libzstd1 \
+    && apt-get install -y \
+    cgroup-tools \
+    libcurl4  \
+    libevent-2.1-7 \
+    libsqlite3-0 \
+    libssl3 \
+    libsystemd0 \
+    liburiparser1 \
+    libuuid1 \
+    libyaml-0-2 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -57,19 +65,20 @@ RUN groupadd -r ggcore && \
     chmod 755 /etc/greengrass/config.d
 
 # Create default config file
-RUN cat > /etc/greengrass/config.d/greengrass-lite.yaml << 'EOF'
----
-system:
-  rootPath: "/var/lib/greengrass"
-services:
-  aws.greengrass.NucleusLite:
-    componentType: "NUCLEUS"
-    configuration:
-      runWithDefault:
-        posixUser: "ggcore:ggcore"
-      greengrassDataPlanePort: "8443"
-      platformOverride: {}
-EOF
+RUN mkdir -p /etc/greengrass/config.d && \
+    echo "---" > /etc/greengrass/config.d/greengrass-lite.yaml && \
+    echo "system:" >> /etc/greengrass/config.d/greengrass-lite.yaml && \
+    echo "  rootPath: \"/var/lib/greengrass\"" >> /etc/greengrass/config.d/greengrass-lite.yaml && \
+    echo "services:" >> /etc/greengrass/config.d/greengrass-lite.yaml && \
+    echo "  aws.greengrass.NucleusLite:" >> /etc/greengrass/config.d/greengrass-lite.yaml && \
+    echo "    componentType: \"NUCLEUS\"" >> /etc/greengrass/config.d/greengrass-lite.yaml && \
+    echo "    configuration:" >> /etc/greengrass/config.d/greengrass-lite.yaml && \
+    echo "      runWithDefault:" >> /etc/greengrass/config.d/greengrass-lite.yaml && \
+    echo "        posixUser: \"ggcore:ggcore\"" >> /etc/greengrass/config.d/greengrass-lite.yaml && \
+    echo "      greengrassDataPlanePort: \"8443\"" >> /etc/greengrass/config.d/greengrass-lite.yaml && \
+    echo "      platformOverride: {}" >> /etc/greengrass/config.d/greengrass-lite.yaml
+
+RUN ln -s /etc/greengrass/connection-kit/config.yaml /etc/greengrass/config.yaml
 
 # Enable all systemd services and sockets
 RUN systemctl enable greengrass-lite.target && \
@@ -92,28 +101,5 @@ RUN systemctl enable greengrass-lite.target && \
     systemctl enable ggl.core.ggipcd.service && \
     systemctl enable ggl.aws.greengrass.TokenExchangeService.service
 
-# Create systemd service files
-# greengrass-lite.target is already installed by the Greengrass build process
-
-# Create setup service
-RUN cat > /etc/systemd/system/greengrass-setup.service << 'EOF'
-[Unit]
-Description=Greengrass Connection Kit Setup and Start
-After=multi-user.target
-Wants=multi-user.target
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c 'if [ -f /etc/greengrass/*.zip ]; then echo "Setting up Greengrass"; cd /etc/greengrass && unzip -o *.zip; sed -i -e "s:{{config_dir}}:/etc/greengrass:g" -e "s:{{nucleus_component}}:aws.greengrass.NucleusLite:g" config.yaml; chown ggcore:ggcore *.pem* config.yaml; chmod 644 device.pem.crt AmazonRootCA1.pem; chmod 600 private.pem.key; systemctl enable greengrass-lite.target; systemctl start greengrass-lite.target; echo "Greengrass setup complete"; else echo "No connection kit found"; fi'
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-COPY ./getty-override.conf \
-  /etc/systemd/system/console-getty.service.d/override.conf
-
-RUN echo "export MAKEFLAGS=-j" >> /root/.profile
 
 CMD ["/lib/systemd/systemd"]

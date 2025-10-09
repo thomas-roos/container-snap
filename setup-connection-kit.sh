@@ -8,7 +8,7 @@ if [ $# -ne 1 ]; then
 fi
 
 CONNECTION_KIT="$1"
-CONFIG_DIR="/var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config"
+CONFIG_DIR="/var/snap/greengrass-lite-snap/current/docker-volumes/greengrass-lite-snap/connection-kit"
 
 echo "=== Setting up AWS Greengrass Connection Kit ==="
 
@@ -29,18 +29,13 @@ unzip -o "$CONNECTION_KIT"
 
 # Fix config placeholders
 echo "Processing config.yaml..."
-sed -i -e 's:{{config_dir}}:/etc/greengrass:g' -e 's:{{nucleus_component}}:aws.greengrass.NucleusLite:g' config.yaml
+sed -i -e 's:{{config_dir}}:/etc/greengrass/connection-kit:g' -e 's:{{nucleus_component}}:aws.greengrass.NucleusLite:g' config.yaml
 
 # Set proper ownership (ggcore user has UID 998 in container)
 echo "Setting file permissions..."
-chown 998:998 *.pem* config.yaml
+chown 997:997 *.pem* config.yaml
 chmod 644 device.pem.crt AmazonRootCA1.pem config.yaml
 chmod 600 private.pem.key
 
 echo "=== Connection kit setup complete ==="
 echo "Files ready in: $CONFIG_DIR"
-echo ""
-echo "Next steps:"
-echo "1. cd /snap/systemd-compose-snap/current/docker-compose/systemd-compose-snap"
-echo "2. sudo docker load < image.tar.gz"
-echo "3. SNAP_DATA=/var/snap/systemd-compose-snap/current SNAPCRAFT_PROJECT_NAME=systemd-compose-snap sudo -E docker-compose --env-file docker-compose.env up -d"
