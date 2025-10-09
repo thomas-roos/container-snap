@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ubuntu:22.04
+ARG BASE_IMAGE=debian:trixie-slim
 FROM ${BASE_IMAGE}
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -8,16 +8,16 @@ RUN apt-get update \
     build-essential pkg-config cmake git curl file gdb python3 \
     libssl-dev libcurl4-openssl-dev libsqlite3-dev sqlite3 libyaml-dev \
     libsystemd-dev liburiparser-dev uuid-dev libevent-dev cgroup-tools zlib1g-dev \
+    libzstd-dev \
     unzip \
   && apt-get clean
 
 # Build static libzip
-RUN echo "deb-src http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" >> /etc/apt/sources.list && \
-    echo "deb-src http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+RUN echo "deb-src http://deb.debian.org/debian trixie main" >> /etc/apt/sources.list && \
     apt-get update && \
     apt-get source libzip && \
     cd libzip-* && \
-    cmake -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr . && \
+    cmake -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_ZSTD=OFF . && \
     make -j$(nproc) && \
     make install
 
@@ -36,13 +36,14 @@ RUN apt-get remove -y --purge \
     build-essential pkg-config cmake git curl file gdb python3 \
     libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
     libsystemd-dev liburiparser-dev uuid-dev libevent-dev zlib1g-dev \
+    libzstd-dev \
     && apt-get autoremove -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /libzip-* \
     && rm -rf /tmp/* \
     && apt-get update \
-    && apt-get install -y libyaml-0-2 liburiparser1 \
+    && apt-get install -y libyaml-0-2 liburiparser1 libcurl4t64 libsqlite3-0 libevent-2.1-7t64 libzstd1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -92,16 +93,7 @@ RUN systemctl enable greengrass-lite.target && \
     systemctl enable ggl.aws.greengrass.TokenExchangeService.service
 
 # Create systemd service files
-RUN mkdir -p /usr/lib/systemd/system && \
-    cat > /usr/lib/systemd/system/greengrass-lite.target << 'EOF'
-[Unit]
-Description=AWS IoT Greengrass runtime for constrained devices.
-Wants=ggl.core.ggconfigd.service ggl.core.iotcored.service ggl.core.tesd.service ggl.core.ggdeploymentd.service ggl.core.gg-fleet-statusd.service ggl.core.ggpubsubd.service ggl.core.gghealthd.service ggl.core.ggipcd.service
-After=ggl.core.ggconfigd.service ggl.core.iotcored.service ggl.core.tesd.service ggl.core.ggdeploymentd.service ggl.core.gg-fleet-statusd.service ggl.core.ggpubsubd.service ggl.core.gghealthd.service ggl.core.ggipcd.service
-
-[Install]
-WantedBy=multi-user.target
-EOF
+# greengrass-lite.target is already installed by the Greengrass build process
 
 # Create setup service
 RUN cat > /etc/systemd/system/greengrass-setup.service << 'EOF'
