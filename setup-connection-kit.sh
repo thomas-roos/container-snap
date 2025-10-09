@@ -7,8 +7,14 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONNECTION_KIT="$1"
 CONFIG_DIR="/var/snap/greengrass-lite-snap/current/docker-volumes/greengrass-lite-snap/connection-kit"
+
+# Make connection kit path absolute if it's relative
+if [[ ! "$CONNECTION_KIT" = /* ]]; then
+    CONNECTION_KIT="$(pwd)/$CONNECTION_KIT"
+fi
 
 echo "=== Setting up AWS Greengrass Connection Kit ==="
 
