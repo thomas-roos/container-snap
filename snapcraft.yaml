@@ -21,9 +21,19 @@ slots:
       write:
         - $SNAP_DATA/docker-volumes/${CRAFT_PROJECT_NAME}
 
+hooks:
+  configure:
+    plugs: [snapd-control]
+
 apps:
   info:
     command: bin/compose-info
+  
+  daemon:
+    command: bin/start-container
+    daemon: simple
+    restart-condition: always
+    plugs: [docker, network]
 
 parts:
   docker-compose:
@@ -37,5 +47,13 @@ parts:
     source: .
     organize:
       compose-info: bin/compose-info
+      start-container: bin/start-container
     stage:
       - bin/compose-info
+      - bin/start-container
+  
+  hooks:
+    plugin: dump
+    source: hooks
+    organize:
+      '*': meta/hooks/

@@ -1,0 +1,18 @@
+[Unit]
+Description=SystemD Container with AWS Greengrass Lite
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/snap/systemd-compose-snap/current/docker-compose/systemd-compose-snap
+Environment=SNAP_DATA=/var/snap/systemd-compose-snap/current
+Environment=SNAPCRAFT_PROJECT_NAME=systemd-compose-snap
+ExecStartPre=/usr/bin/docker load -i /snap/systemd-compose-snap/current/docker-compose/systemd-compose-snap/image.tar.gz
+ExecStart=/usr/bin/docker-compose --env-file docker-compose.env up -d
+ExecStop=/usr/bin/docker-compose --env-file docker-compose.env down
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

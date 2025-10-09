@@ -1,0 +1,51 @@
+#!/bin/bash
+set -e
+
+# Wait for docker to be available
+while ! docker info >/dev/null 2>&1; do
+    echo "Waiting for Docker..."
+    sleep 2
+done
+
+# Set environment variables
+export SNAP_DATA=/var/snap/systemd-compose-snap/current
+export SNAPCRAFT_PROJECT_NAME=systemd-compose-snap
+
+# Create volume directories
+mkdir -p "$SNAP_DATA/docker-volumes/systemd-compose-snap/config"
+mkdir -p "$SNAP_DATA/docker-volumes/systemd-compose-snap/lib"
+mkdir -p "$SNAP_DATA/docker-volumes/systemd-compose-snap/components"
+
+# Change to compose directory
+cd "$SNAP/docker-compose/systemd-compose-snap"
+
+# Load image if not already loaded
+if ! docker images | grep -q systemd-greengrass; then
+    echo "Loading container image..."
+    docker load < image.tar.gz
+fi
+
+# Remove any existing container
+docker rm systemd-snap-container 2>/dev/null || true
+
+# Start container with auto-setup
+echo "Starting SystemD container with Greengrass Lite..."
+docker run -d --name systemd-snap-container \
+  --tmpfs /tmp --tmpfs /run --tmpfs /run/lock \
+  -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+  -v "$SNAP_DATA/docker-volumes/systemd-compose-snap/config:/etc/greengrass" \
+  -v "$SNAP_DATA/docker-volumes/systemd-compose-snap/lib:/var/lib/greengrass" \
+  -v "$SNAP_DATA/docker-volumes/systemd-compose-snap/components:/opt/aws/iot/greengrass/components" \
+  --restart on-failure \
+  systemd-greengrass:latest
+
+# Wait for container to be ready
+echo "Waiting for container to initialize..."
+sleep 15
+
+# Run Greengrass setup automatically
+echo "Running Greengrass setup..."
+docker exec systemd-snap-container /usr/local/bin/setup-greengrass.sh
+
+echo "SystemD container with Greengrass Lite started successfully!"
+echo "Check status with: docker exec systemd-snap-container systemctl list-units --state=active | grep ggl"

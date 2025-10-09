@@ -12,11 +12,20 @@ This snap implements the **provider** side of the Bosch ctrlX pattern:
 - Packages docker-compose.yml, docker-compose.env, and Dockerfile
 - Exposes them via snap content interface at `/snap/systemd-compose-snap/x1/docker-compose/`
 - Contains SystemD container with AWS Greengrass Lite (jrei/systemd-ubuntu:24.04 + Greengrass Lite v2.2.2)
+- **Does NOT run containers itself**
 
 **Consumer Snap (separate project):**
 - Connects to this provider's content interface
-- Executes docker-compose commands from provider's directory
+- **Executes `docker-compose up -d` from provider's directory**
 - Provides runtime commands like `compose-runner.list`
+
+**ctrlX CORE Deployment:**
+- **Container Engine app** acts as the consumer
+- Reads docker-compose files from provider snaps
+- **Manages container lifecycle through web UI**
+
+**Manual Testing:**
+- Run `docker-compose up -d` directly since no consumer snap is installed
 
 **Benefits:**
 - Configuration separated from execution
@@ -45,33 +54,57 @@ sudo snap install --dangerous systemd-compose-snap_1.0_amd64.snap
 systemd-compose-snap.info
 ```
 
-## Testing the Container
+## Connection Kit Setup
 
-### Test 1: Build and Run Container Directly
+**Simple 3-Step Process:**
 
 ```bash
-# Navigate to snap's docker-compose directory
-cd /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap
+# 1. Install snap
+sudo snap install --dangerous systemd-compose-snap_1.0_amd64.snap
 
-# Build and start SystemD + Greengrass container
+# 2. Setup connection kit (processes everything on host)
+sudo ./setup-connection-kit.sh /path/to/your-connection-kit.zip
+
+# 3. Start container
+cd /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap
+docker-compose up -d
+```
+
+The `setup-connection-kit.sh` script automatically:
+- Extracts certificates and config files
+- Processes config.yaml placeholders  
+- Sets correct file permissions
+- Prepares everything before container startup
+
+**Important Notes:**
+- Connection kits contain sensitive certificates and should NEVER be included in the snap
+- Each deployment needs its own unique connection kit from AWS IoT Console
+- All processing happens on the host before container starts - no manual fixes needed
+
+## Testing the Container
+
+### Complete Test Flow
+
+```bash
+# 1. Install snap
+sudo snap install --dangerous systemd-compose-snap_1.0_amd64.snap
+
+# 2. Setup connection kit
+sudo ./setup-connection-kit.sh /path/to/your-connection-kit.zip
+
+# 3. Start container
+cd /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap
 docker-compose up -d
 
-# Test SystemD functionality
-docker exec systemd-snap-container systemctl status
-docker exec systemd-snap-container systemctl list-units --type=service --state=active
+# 4. Verify functionality
+docker exec systemd-snap-container systemctl status greengrass-lite.target
+docker exec systemd-snap-container systemctl list-units --state=active | grep ggl
 
-# Test Greengrass Lite installation
-docker exec systemd-snap-container dpkg -l | grep greengrass
-docker exec systemd-snap-container systemctl list-unit-files | grep ggl
-
-# Interactive access
-docker exec -it systemd-snap-container /bin/bash
-
-# Stop container
+# 5. Stop container
 docker-compose down
 ```
 
-### Test 2: Manual Testing (Without Snap)
+### Manual Testing (Without Connection Kit)
 
 ```bash
 # Create test directory
@@ -145,17 +178,24 @@ The snap provides persistent storage for Greengrass configuration and data throu
 
 ### Updating Configuration
 
-**1. Direct File System Access (ctrlX CORE):**
+**1. Using Setup Script (Recommended):**
 ```bash
-# SSH into ctrlX CORE
-ssh boschrexroth@192.168.1.1
+# Replace connection kit
+sudo ./setup-connection-kit.sh /path/to/new-connection-kit.zip
 
+# Restart container to pick up changes
+cd /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap
+docker-compose restart
+```
+
+**2. Direct File System Access:**
+```bash
 # Edit config files directly
 sudo nano /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/config.yaml
 sudo nano /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/certificates.pem
 ```
 
-**2. Container Access:**
+**3. Container Access:**
 ```bash
 # Access running container
 docker exec -it systemd-snap-container /bin/bash
@@ -165,72 +205,12 @@ nano /etc/greengrass/config.yaml
 nano /var/lib/greengrass/deployment.json
 ```
 
-**3. File Copy Operations:**
+**4. File Copy Operations:**
 ```bash
 # Copy config files to snap directory
 sudo cp my-config.yaml /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/
 sudo cp certificates/* /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/
 sudo cp components/*.jar /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/components/
-```
-
-**4. Via ctrlX Web Interface:**
-- Upload files through ctrlX Device Portal
-- Use file manager to navigate to snap directories
-- Edit configurations through web-based editors
-
-**5. Automated Deployment:**
-```bash
-#!/bin/bash
-SNAP_DIR="/var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap"
-cp connection-kit/* $SNAP_DIR/config/
-cp components/* $SNAP_DIR/components/
-docker restart systemd-snap-container
-```
-
-**6. Using AWS Greengrass Connection Kit:**
-```bash
-# 1. Copy your AWS connection kit to the config directory
-sudo cp your-connection-kit.zip \
-  /var/snap/systemd-compose-snap/current/docker-volumes/systemd-compose-snap/config/
-
-# 2. Start the container
-cd /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap
-docker-compose --env-file docker-compose.env up -d
-
-# 3. Run setup script (will check for connection kit)
-docker exec systemd-snap-container /snap/systemd-compose-snap/x1/docker-compose/systemd-compose-snap/setup-greengrass.sh
-
-# 4. Verify all services are running
-docker exec systemd-snap-container systemctl list-units --state=active | grep ggl
-```
-
-**Important Security Note:**
-- Connection kits contain sensitive certificates and should NEVER be included in the snap
-- Always copy your connection kit to the volume directory after snap installation
-- Each deployment needs its own unique connection kit from AWS IoT Console
-
-**Complete Setup Process (Manual):**
-```bash
-# 1. Download and install Greengrass Lite properly
-cd /tmp
-wget -O greengrass-lite.zip https://github.com/aws-greengrass/aws-greengrass-lite/releases/download/v2.2.2/aws-greengrass-lite-ubuntu-x86-64.zip
-unzip greengrass-lite.zip -d greengrass
-cd greengrass
-
-# 2. Install with connection kit
-bash install-greengrass-lite.sh -k /etc/greengrass/GreengrassQuickStartCore-19976cbc5c0-connectionKit.zip
-
-# 3. Fix config placeholders
-sed -i -e s:{{config_dir}}:\/etc\/greengrass:g -e s:{{nucleus_component}}:aws.greengrass.NucleusLite:g /etc/greengrass/config.yaml
-
-# 4. Fix certificate ownership and permissions
-chown ggcore:ggcore /etc/greengrass/*.pem* /etc/greengrass/config.yaml
-chmod 644 /etc/greengrass/device.pem.crt /etc/greengrass/AmazonRootCA1.pem
-chmod 600 /etc/greengrass/private.pem.key
-
-# 5. Enable and start Greengrass Lite
-systemctl enable greengrass-lite.target
-systemctl start greengrass-lite.target
 ```
 
 All changes persist across container restarts and system reboots.
