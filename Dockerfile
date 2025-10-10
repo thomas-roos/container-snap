@@ -19,16 +19,18 @@ RUN echo "deb-src http://archive.ubuntu.com/ubuntu noble main restricted univers
     make -j$(nproc) && \
     make install
 
-# Build and install AWS Greengrass Lite from source
-RUN git clone --depth 1 https://github.com/aws-greengrass/aws-greengrass-lite.git /tmp/aws-greengrass-lite && \
+# Build and install AWS Greengrass Lite from source with container fix
+COPY auth-container-fix.patch /tmp/
+RUN git clone -b b64aea9ddd561db2fa59573f83af702fd2cf3db1 https://github.com/aws-greengrass/aws-greengrass-lite.git /tmp/aws-greengrass-lite && \
     cd /tmp/aws-greengrass-lite && \
+    git apply /tmp/auth-container-fix.patch && \
     mkdir build && cd build && \
     cmake .. && \
     make -j$(nproc) && \
     make install DESTDIR=/tmp/install
 
 # Runtime stage
-FROM ubuntu:24.04
+FROM jrei/systemd-ubuntu:24.04
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Install only runtime dependencies
@@ -51,10 +53,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy built binaries from builder stage
 COPY --from=builder /tmp/install /
 COPY --from=builder /usr/local /usr/local
-
-# Remove unnecessary systemd bloat
-RUN rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/* /var/cache/debconf/* \
-    /usr/share/locale/* /var/log/*
 
 # Create users and groups and run postinst steps
 RUN groupadd -r ggcore && \

@@ -1,0 +1,32 @@
+diff --git a/modules/ggipc-auth/src/auth.c b/modules/ggipc-auth/src/auth.c
+index eae848c0..4e56e409 100644
+--- a/modules/ggipc-auth/src/auth.c
++++ b/modules/ggipc-auth/src/auth.c
+@@ -11,14 +11,22 @@
+ #include <systemd/sd-login.h>
+ 
+ GglError ggl_ipc_auth_validate_name(pid_t pid, GglBuffer component_name) {
+-    char *unit_name = NULL;
+-    int error = sd_pid_get_unit(pid, &unit_name);
+-    GGL_CLEANUP(cleanup_free, unit_name);
+-    if ((error < 0) || (unit_name == NULL)) {
+-        GGL_LOGE("Failed to look up service for pid %d.", pid);
++    char *cgroup = NULL;
++    int error = sd_pid_get_cgroup(pid, &cgroup);
++    GGL_CLEANUP(cleanup_free, cgroup);
++    if ((error < 0) || (cgroup == NULL)) {
++        GGL_LOGE("Failed to look up cgroup for pid %d.", pid);
+         return GGL_ERR_FAILURE;
+     }
+ 
++    // Find the last occurrence of '/' to get the unit name
++    char *unit_name = strrchr(cgroup, '/');
++    if (unit_name == NULL) {
++        unit_name = cgroup;
++    } else {
++        unit_name++; // Skip the '/'
++    }
++
+     GglBuffer name = ggl_buffer_from_null_term(unit_name);
+ 
+     if (!ggl_buffer_remove_suffix(&name, GGL_STR(".service"))) {

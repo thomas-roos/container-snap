@@ -11,9 +11,6 @@ services:
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
       - ${SNAP_DATA}/docker-volumes/${SNAPCRAFT_PROJECT_NAME}/connection-kit:/etc/greengrass/connection-kit:rw
-      - ${SNAP_DATA}/docker-volumes/${SNAPCRAFT_PROJECT_NAME}/components:/opt/aws/iot/greengrass/components:rw
-      - ${SNAP_DATA}/docker-volumes/${SNAPCRAFT_PROJECT_NAME}/lib:/var/lib/greengrass:rw
-      - systemd-data:/data
     restart: always
     tty: true
     stdin_open: true

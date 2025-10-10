@@ -94,7 +94,7 @@ The `setup-connection-kit.sh` script automatically:
 
 ```bash
 # Stop container (if running)
-cd /snap/greengrass-lite-snap/x1/docker-compose/greengrass-lite-snap
+cd /snap/greengrass-lite-snap/current/docker-compose/greengrass-lite-snap
 docker-compose down
 
 # Remove snap
@@ -132,6 +132,36 @@ docker-compose restart
 **2. Direct File System Access:**
 ```bash
 # Edit config files directly
-sudo nano /var/snap/greengrass-lite-snap/current/docker-volumes/greengrass-lite-snap/config/config.yaml
-sudo nano /var/snap/greengrass-lite-snap/current/docker-volumes/greengrass-lite-snap/config/certificates.pem
+sudo nano /var/snap/greengrass-lite-snap/current/docker-volumes/greengrass-lite-snap/connection-kit/config.yaml
+sudo nano /var/snap/greengrass-lite-snap/current/docker-volumes/greengrass-lite-snap/connection-kit/certificates.pem
+```
+
+tested with this component
+
+```yaml
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: "com.example.HelloWorldBash"
+ComponentVersion: "1.0.10"
+ComponentType: "aws.greengrass.generic"
+ComponentDescription: "Simplest hello world."
+ComponentPublisher: "AWS"
+ComponentConfiguration:
+  DefaultConfiguration:
+    maxUploadIntervalSec: 300
+ComponentDependencies:
+  aws.greengrass.TokenExchangeService:
+    VersionRequirement: ">=2.0.0"
+    DependencyType: "HARD"
+Manifests:
+- Platform:
+    os: "linux"
+    runtime: "*"
+  Lifecycle:
+    run:
+      RequiresPrivilege: true
+      Script: "while true; do echo version $(date) ; sleep 1; done"
+  Artifacts: []
+Lifecycle: {}
+
 ```
