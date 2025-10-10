@@ -1,0 +1,12 @@
+[Unit]
+Description=Fix Greengrass connection-kit ownership
+Before=greengrass-lite.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/bin/chown -R ggcore: /etc/greengrass/connection-kit
+RemainAfterExit=yes
+
+[Install]
+WantedBy=greengrass-lite.target

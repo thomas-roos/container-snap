@@ -37,9 +37,7 @@ unzip -o "$CONNECTION_KIT"
 echo "Processing config.yaml..."
 sed -i -e 's:{{config_dir}}:/etc/greengrass/connection-kit:g' -e 's:{{nucleus_component}}:aws.greengrass.NucleusLite:g' config.yaml
 
-# Set proper ownership (ggcore user has UID 998 in container)
-echo "Setting file permissions..."
-chown 997:997 *.pem* config.yaml
+# Set proper ownership (ggcore user has UID changes in container so owership is )
 chmod 644 device.pem.crt AmazonRootCA1.pem config.yaml
 chmod 600 private.pem.key
 

@@ -19,9 +19,11 @@ RUN echo "deb-src http://archive.ubuntu.com/ubuntu noble main restricted univers
     make -j$(nproc) && \
     make install
 
-# Build and install AWS Greengrass Lite from source with container fix
+# Build (a known good commit sha) and install AWS Greengrass Lite from source with container fix
 COPY auth-container-fix.patch /tmp/
-RUN git clone -b b64aea9ddd561db2fa59573f83af702fd2cf3db1 https://github.com/aws-greengrass/aws-greengrass-lite.git /tmp/aws-greengrass-lite && \
+RUN git clone https://github.com/aws-greengrass/aws-greengrass-lite.git /tmp/aws-greengrass-lite && \
+    cd /tmp/aws-greengrass-lite && \
+    git checkout b64aea9ddd561db2fa59573f83af702fd2cf3db1 && \
     cd /tmp/aws-greengrass-lite && \
     git apply /tmp/auth-container-fix.patch && \
     mkdir build && cd build && \
@@ -54,6 +56,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /tmp/install /
 COPY --from=builder /usr/local /usr/local
 
+# Copy and install permission fix service
+COPY fix-permissions.service /usr/local/lib/systemd/system/
+
 # Create users and groups and run postinst steps
 RUN groupadd -r ggcore && \
     useradd -r -g ggcore -s /bin/false ggcore && \
@@ -80,7 +85,8 @@ RUN mkdir -p /etc/greengrass/config.d && \
 RUN ln -s /etc/greengrass/connection-kit/config.yaml /etc/greengrass/config.yaml
 
 # Enable all systemd services and sockets
-RUN systemctl enable greengrass-lite.target && \
+RUN systemctl enable fix-permissions.service && \
+    systemctl enable greengrass-lite.target && \
     systemctl enable ggl.aws_iot_tes.socket && \
     systemctl enable ggl.aws_iot_mqtt.socket && \
     systemctl enable ggl.gg_config.socket && \

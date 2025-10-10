@@ -4,6 +4,8 @@ services:
   systemd-container:
     image: ${IMAGE_NAME}:${IMAGE_TAG}
     container_name: greengrass-lite
+    security_opt:
+      - apparmor:unconfined
     tmpfs:
       - /tmp
       - /run

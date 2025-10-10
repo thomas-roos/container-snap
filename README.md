@@ -28,14 +28,20 @@ This snap implements the **provider** side of the Bosch ctrlX pattern:
 - Versioned container definitions
 - SystemD + Greengrass Lite works without privileged mode
 
-## Prerequisites
+## Prerequisites: installing snap
 
 ```bash
-sudo apt update && sudo apt install -y docker.io docker-compose
+sudo apt update && sudo apt install -y docker.io docker-compose unzip
 sudo usermod -aG docker $USER
 sudo snap install snapcraft --classic
 ```
 **Important: Logout and login again for docker group changes to take effect**
+
+## Prerequisites: building snap
+
+```bash
+sudo snap install snapcraft --classic
+```
 
 ## Building the Container and Snap
 
