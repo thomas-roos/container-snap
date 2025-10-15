@@ -33,7 +33,6 @@ This snap implements the **provider** side of the Bosch ctrlX pattern:
 ```bash
 sudo apt update && sudo apt install -y docker.io docker-compose unzip
 sudo usermod -aG docker $USER
-sudo snap install snapcraft --classic
 ```
 **Important: Logout and login again for docker group changes to take effect**
 
@@ -53,6 +52,7 @@ docker build -t greengrass-lite:latest .
 docker save greengrass-lite:latest | gzip > docker-compose/image.tar.gz
 
 # Build the snap
+sudo ufw disable
 snapcraft pack
 ```
 
